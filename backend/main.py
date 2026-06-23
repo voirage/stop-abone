@@ -81,7 +81,7 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
     if not user or user.reset_code != req.code or not user.reset_expiry or user.reset_expiry < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Code invalide ou expiré")
     
-    user.mot_de_passe_hache = auth.get_password_hash(req.nouveau_mot_de_passe)
+    user.mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(req.nouveau_mot_de_passe)
     user.reset_code = None
     user.reset_expiry = None
     db.commit()
