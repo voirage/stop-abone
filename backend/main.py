@@ -7,6 +7,9 @@ from typing import List
 from datetime import timedelta, datetime
 import random
 import string
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 
 import models, schemas, auth, database
 from pdf_generator import generer_lettre_resiliation
@@ -83,14 +86,14 @@ def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(da
 def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(database.get_db)):
     user = db.query(models.Utilisateur).filter(models.Utilisateur.email == req.email).first()
     
-    print("=== DEBUG RESET PASSWORD ===")
-    print(f"email reçu: {req.email}")
-    print(f"code reçu: '{req.code}'")
+    logger.warning("=== DEBUG RESET PASSWORD ===")
+    logger.warning(f"email reçu: {req.email}")
+    logger.warning(f"code reçu: {req.code!r}")
+    logger.warning(f"user trouvé: {user is not None}")
     if user:
-        print(f"code enregistré en base: '{user.reset_code}'")
-        print(f"expiry enregistrée: {user.reset_expiry} (type: {type(user.reset_expiry)})")
-    print(f"heure actuelle (utcnow): {datetime.utcnow()}")
-    print("============================")
+        logger.warning(f"code base: {user.reset_code!r}")
+        logger.warning(f"expiry base: {user.reset_expiry!r}")
+    logger.warning(f"utcnow: {datetime.utcnow()!r}")
 
     if not user:
         raise HTTPException(status_code=400, detail="Code invalide ou expiré")
@@ -99,11 +102,11 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
     req_code = str(req.code).strip()
     
     if db_code != req_code:
-        print("Échec: les codes ne correspondent pas")
+        logger.warning("Échec: les codes ne correspondent pas")
         raise HTTPException(status_code=400, detail="Code invalide ou expiré")
         
     if not user.reset_expiry or user.reset_expiry < datetime.utcnow():
-        print("Échec: le code est expiré")
+        logger.warning("Échec: le code est expiré")
         raise HTTPException(status_code=400, detail="Code invalide ou expiré")
     
     user.mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(req.nouveau_mot_de_passe)
