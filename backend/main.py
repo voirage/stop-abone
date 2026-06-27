@@ -73,7 +73,7 @@ def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(da
     
     # In real life, we send an email here.
     # For MVP, we return it in the response to make it testable on frontend.
-    return {"msg": "Code généré avec succès.", "simulated_code": code}
+    return {"msg": "Si l'email existe, un code a été envoyé.", "simulated_code": code}
 
 @app.post("/auth/reset-password", tags=["Authentification"])
 def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(database.get_db)):
