@@ -62,14 +62,14 @@ def connexion_pour_token_acces(form_data: OAuth2PasswordRequestForm = Depends(),
 @app.post("/auth/forgot-password", tags=["Authentification"])
 def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(database.get_db)):
     user = db.query(models.Utilisateur).filter(models.Utilisateur.email == req.email).first()
-    if not user:
-        return {"msg": "Si l'email existe, un code a été généré."}
     
     # Generate 6 digit code
     code = ''.join(random.choices(string.digits, k=6))
-    user.reset_code = code
-    user.reset_expiry = datetime.utcnow() + timedelta(minutes=15)
-    db.commit()
+    
+    if user:
+        user.reset_code = code
+        user.reset_expiry = datetime.utcnow() + timedelta(minutes=15)
+        db.commit()
     
     # In real life, we send an email here.
     # For MVP, we return it in the response to make it testable on frontend.
