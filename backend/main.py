@@ -64,7 +64,8 @@ def connexion_pour_token_acces(form_data: OAuth2PasswordRequestForm = Depends(),
 
 @app.post("/auth/forgot-password", response_model=schemas.ForgotPasswordResponse, tags=["Authentification"])
 def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(database.get_db)):
-    user = db.query(models.Utilisateur).filter(models.Utilisateur.email == req.email).first()
+    email_norm = req.email.strip().lower()
+    user = db.query(models.Utilisateur).filter(models.Utilisateur.email == email_norm).first()
     
     # Generate 6 digit code
     code = ''.join(random.choices(string.digits, k=6))
@@ -84,13 +85,22 @@ def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(da
 
 @app.post("/auth/reset-password", tags=["Authentification"])
 def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(database.get_db)):
-    user = db.query(models.Utilisateur).filter(models.Utilisateur.email == req.email).first()
+    email_norm = req.email.strip().lower()
+    
+    stmt = db.query(models.Utilisateur).filter(models.Utilisateur.email == email_norm)
+    logger.warning(f"SQL requête: {str(stmt)}")
+    
+    utilisateurs_trouves = stmt.all()
+    logger.warning(f"Nombre d'utilisateurs trouvés: {len(utilisateurs_trouves)}")
+    
+    user = utilisateurs_trouves[0] if utilisateurs_trouves else None
     
     logger.warning("=== DEBUG RESET PASSWORD ===")
-    logger.warning(f"email reçu: {req.email}")
+    logger.warning(f"email recherché: {email_norm}")
     logger.warning(f"code reçu: {req.code!r}")
-    logger.warning(f"user trouvé: {user is not None}")
+    
     if user:
+        logger.warning(f"user trouvé: True, ID: {user.id}")
         logger.warning(f"code base: {user.reset_code!r}")
         logger.warning(f"expiry base: {user.reset_expiry!r}")
     logger.warning(f"utcnow: {datetime.utcnow()!r}")
