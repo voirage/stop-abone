@@ -82,7 +82,28 @@ def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(da
 @app.post("/auth/reset-password", tags=["Authentification"])
 def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(database.get_db)):
     user = db.query(models.Utilisateur).filter(models.Utilisateur.email == req.email).first()
-    if not user or user.reset_code != req.code or not user.reset_expiry or user.reset_expiry < datetime.utcnow():
+    
+    print("=== DEBUG RESET PASSWORD ===")
+    print(f"email reçu: {req.email}")
+    print(f"code reçu: '{req.code}'")
+    if user:
+        print(f"code enregistré en base: '{user.reset_code}'")
+        print(f"expiry enregistrée: {user.reset_expiry} (type: {type(user.reset_expiry)})")
+    print(f"heure actuelle (utcnow): {datetime.utcnow()}")
+    print("============================")
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Code invalide ou expiré")
+        
+    db_code = str(user.reset_code).strip() if user.reset_code else ""
+    req_code = str(req.code).strip()
+    
+    if db_code != req_code:
+        print("Échec: les codes ne correspondent pas")
+        raise HTTPException(status_code=400, detail="Code invalide ou expiré")
+        
+    if not user.reset_expiry or user.reset_expiry < datetime.utcnow():
+        print("Échec: le code est expiré")
         raise HTTPException(status_code=400, detail="Code invalide ou expiré")
     
     user.mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(req.nouveau_mot_de_passe)
