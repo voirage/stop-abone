@@ -59,7 +59,7 @@ def connexion_pour_token_acces(form_data: OAuth2PasswordRequestForm = Depends(),
     return {"access_token": token_acces, "token_type": "bearer"}
 
 
-@app.post("/auth/forgot-password", tags=["Authentification"])
+@app.post("/auth/forgot-password", response_model=schemas.ForgotPasswordResponse, tags=["Authentification"])
 def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(database.get_db)):
     user = db.query(models.Utilisateur).filter(models.Utilisateur.email == req.email).first()
     

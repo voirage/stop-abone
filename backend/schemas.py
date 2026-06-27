@@ -27,6 +27,11 @@ class Utilisateur(UtilisateurBase):
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
+class ForgotPasswordResponse(BaseModel):
+    msg: str
+    reset_code: str
+    expires_in_minutes: int
+
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
     code: str
