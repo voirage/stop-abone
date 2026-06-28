@@ -48,6 +48,30 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreation, db: Session = De
     db.refresh(nouvel_utilisateur)
     return nouvel_utilisateur
 
+@app.get("/debug-production", tags=["Authentification"])
+def debug_production(email: str = None, db: Session = Depends(database.get_db)):
+    query = db.query(models.Utilisateur)
+    if email:
+        query = query.filter(models.Utilisateur.email == email.strip().lower())
+        
+    utilisateurs = query.all()
+    result = []
+    for u in utilisateurs:
+        algo = "inconnu"
+        if u.mot_de_passe_hache:
+            if u.mot_de_passe_hache.startswith("$2b$"):
+                algo = "bcrypt"
+            elif u.mot_de_passe_hache.startswith("$pbkdf2"):
+                algo = "pbkdf2_sha256"
+                
+        result.append({
+            "id": u.id,
+            "email": u.email,
+            "algo_hash": algo,
+            "hash_prefix": u.mot_de_passe_hache[:15] + "..." if u.mot_de_passe_hache else "aucun"
+        })
+    return {"utilisateurs_trouves": len(result), "utilisateurs": result}
+
 @app.post("/token", response_model=schemas.Token, tags=["Authentification"])
 def connexion_pour_token_acces(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(database.get_db)):
     email_norm = form_data.username.strip().lower()
