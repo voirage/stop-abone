@@ -36,12 +36,13 @@ app.add_middleware(
 
 @app.post("/inscription", response_model=schemas.Utilisateur, status_code=status.HTTP_201_CREATED, tags=["Authentification"])
 def creer_utilisateur(utilisateur: schemas.UtilisateurCreation, db: Session = Depends(database.get_db)):
-    utilisateur_bd = auth.obtenir_utilisateur(db, email=utilisateur.email)
+    email_norm = utilisateur.email.strip().lower()
+    utilisateur_bd = auth.obtenir_utilisateur(db, email=email_norm)
     if utilisateur_bd:
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
     
     mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(utilisateur.mot_de_passe)
-    nouvel_utilisateur = models.Utilisateur(email=utilisateur.email, mot_de_passe_hache=mot_de_passe_hache)
+    nouvel_utilisateur = models.Utilisateur(email=email_norm, mot_de_passe_hache=mot_de_passe_hache)
     db.add(nouvel_utilisateur)
     db.commit()
     db.refresh(nouvel_utilisateur)
@@ -49,13 +50,31 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreation, db: Session = De
 
 @app.post("/token", response_model=schemas.Token, tags=["Authentification"])
 def connexion_pour_token_acces(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(database.get_db)):
-    utilisateur = auth.obtenir_utilisateur(db, email=form_data.username)
-    if not utilisateur or not auth.verifier_mot_de_passe(form_data.password, utilisateur.mot_de_passe_hache):
+    email_norm = form_data.username.strip().lower()
+    logger.warning("=== DIAGNOSTIC LOGIN ===")
+    logger.warning(f"Tentative de connexion pour : '{email_norm}' (brut: '{form_data.username}')")
+    
+    utilisateur = auth.obtenir_utilisateur(db, email=email_norm)
+    if not utilisateur:
+        logger.warning(f"ECHEC : L'utilisateur '{email_norm}' N'EXISTE PAS en base de donnees.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    logger.warning(f"SUCCES : L'utilisateur a ete trouve. ID = {utilisateur.id}")
+    
+    mot_de_passe_valide = auth.verifier_mot_de_passe(form_data.password, utilisateur.mot_de_passe_hache)
+    if not mot_de_passe_valide:
+        logger.warning(f"ECHEC : Le mot de passe fourni pour '{email_norm}' ne correspond pas au hash en base.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    logger.warning("SUCCES : Mot de passe valide. Generation du JWT...")
     expiration_token = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
     token_acces = auth.creer_token_acces(
         donnees={"sub": utilisateur.email}, expires_delta=expiration_token
