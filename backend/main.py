@@ -41,7 +41,11 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreation, db: Session = De
     if utilisateur_bd:
         raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
     
-    mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(utilisateur.mot_de_passe)
+    try:
+        mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(utilisateur.mot_de_passe)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
     nouvel_utilisateur = models.Utilisateur(email=email_norm, mot_de_passe_hache=mot_de_passe_hache)
     db.add(nouvel_utilisateur)
     db.commit()

@@ -11,14 +11,35 @@ import schemas, models, database
 SECRET_KEY = "STOP_ABOS_SUPER_SECRET_KEY_FOR_MVP_ONLY"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 semaine
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
+
+# Contexte Passlib uniquement pour les vieux hashs pbkdf2_sha256 s'il y en a
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-def verifier_mot_de_passe(mot_de_passe_clair, mot_de_passe_hache):
-    return pwd_context.verify(mot_de_passe_clair, mot_de_passe_hache)
+def verifier_mot_de_passe(mot_de_passe_clair: str, mot_de_passe_hache: str) -> bool:
+    if mot_de_passe_hache.startswith("$2b$") or mot_de_passe_hache.startswith("$2a$") or mot_de_passe_hache.startswith("$2y$"):
+        # C'est un hash bcrypt
+        pwd_bytes = mot_de_passe_clair.encode('utf-8')
+        if len(pwd_bytes) > 72:
+            return False
+        try:
+            return bcrypt.checkpw(pwd_bytes, mot_de_passe_hache.encode('utf-8'))
+        except Exception:
+            return False
+    else:
+        # Fallback pour pbkdf2_sha256
+        try:
+            return pwd_context.verify(mot_de_passe_clair, mot_de_passe_hache)
+        except Exception:
+            return False
 
-def obtenir_hachage_mot_de_passe(mot_de_passe):
-    return pwd_context.hash(mot_de_passe)
+def obtenir_hachage_mot_de_passe(mot_de_passe: str) -> str:
+    pwd_bytes = mot_de_passe.encode('utf-8')
+    if len(pwd_bytes) > 72:
+        raise ValueError("Le mot de passe est trop long (maximum 72 octets).")
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
 def creer_token_acces(donnees: dict, expires_delta: Optional[timedelta] = None):
     a_encoder = donnees.copy()
