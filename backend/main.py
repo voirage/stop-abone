@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Security
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -26,7 +26,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -59,7 +59,7 @@ def connexion_pour_token_acces(form_data: OAuth2PasswordRequestForm = Depends(),
     token_acces = auth.creer_token_acces(
         donnees={"sub": utilisateur.email}, expires_delta=expiration_token
     )
-    return {"access_token": token_acces, "token_type": "bearer"}
+    return {"access_token": token_acces, "token_type": "Bearer"}
 
 
 @app.post("/auth/forgot-password", response_model=schemas.ForgotPasswordResponse, tags=["Authentification"])
@@ -128,11 +128,11 @@ def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(data
 
 # --- Routes Abonnements ---
 
-@app.post("/abonnements", response_model=schemas.Abonnement, status_code=status.HTTP_201_CREATED, tags=["Abonnements"])
+@app.post("/abonnements", response_model=schemas.Abonnement, status_code=status.HTTP_201_CREATED, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def ajouter_abonnement(
     abonnement: schemas.AbonnementCreation, 
     db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.obtenir_utilisateur_actuel)
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     nouvel_abonnement = models.Abonnement(**abonnement.dict(), proprietaire_id=utilisateur_actuel.id)
     db.add(nouvel_abonnement)
@@ -140,18 +140,18 @@ def ajouter_abonnement(
     db.refresh(nouvel_abonnement)
     return nouvel_abonnement
 
-@app.get("/abonnements", response_model=List[schemas.Abonnement], tags=["Abonnements"])
+@app.get("/abonnements", response_model=List[schemas.Abonnement], tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def lister_abonnements(
     db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.obtenir_utilisateur_actuel)
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
     return abonnements
 
-@app.get("/abonnements/resume", response_model=schemas.ResumeAbonnements, tags=["Abonnements"])
+@app.get("/abonnements/resume", response_model=schemas.ResumeAbonnements, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def obtenir_resume_abonnements(
     db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.obtenir_utilisateur_actuel)
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
     
@@ -169,12 +169,12 @@ def obtenir_resume_abonnements(
 
     return {"total_mensuel": round(total_mensuel, 2), "total_annuel": round(total_annuel, 2)}
 
-@app.put("/abonnements/{abonnement_id}", response_model=schemas.Abonnement, tags=["Abonnements"])
+@app.put("/abonnements/{abonnement_id}", response_model=schemas.Abonnement, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def modifier_abonnement(
     abonnement_id: int, 
     mise_a_jour: schemas.AbonnementMiseAJour,
     db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.obtenir_utilisateur_actuel)
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     abonnement_bd = db.query(models.Abonnement).filter(
         models.Abonnement.id == abonnement_id,
@@ -192,11 +192,11 @@ def modifier_abonnement(
     db.refresh(abonnement_bd)
     return abonnement_bd
 
-@app.delete("/abonnements/{abonnement_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Abonnements"])
+@app.delete("/abonnements/{abonnement_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def supprimer_abonnement(
     abonnement_id: int, 
     db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.obtenir_utilisateur_actuel)
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     abonnement_bd = db.query(models.Abonnement).filter(
         models.Abonnement.id == abonnement_id,
@@ -210,11 +210,11 @@ def supprimer_abonnement(
     db.commit()
     return
 
-@app.get("/abonnements/{abonnement_id}/lettre-resiliation", tags=["Abonnements"])
+@app.get("/abonnements/{abonnement_id}/lettre-resiliation", tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def telecharger_lettre_resiliation(
     abonnement_id: int, 
     db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.obtenir_utilisateur_actuel)
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     abonnement_bd = db.query(models.Abonnement).filter(
         models.Abonnement.id == abonnement_id,
