@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Annotated
 from datetime import timedelta, datetime
 import random
 import string
@@ -20,7 +20,8 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI(
     title="API STOP-ABOS",
     description="API pour l'application de suivi et résiliation d'abonnements",
-    version="1.0.0"
+    version="1.0.0",
+    servers=[{"url": "/"}]
 )
 
 app.add_middleware(
@@ -47,7 +48,7 @@ def creer_utilisateur(utilisateur: schemas.UtilisateurCreation, db: Session = De
     return nouvel_utilisateur
 
 @app.post("/token", response_model=schemas.Token, tags=["Authentification"])
-def connexion_pour_token_acces(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+def connexion_pour_token_acces(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: Session = Depends(database.get_db)):
     utilisateur = auth.obtenir_utilisateur(db, email=form_data.username)
     if not utilisateur or not auth.verifier_mot_de_passe(form_data.password, utilisateur.mot_de_passe_hache):
         raise HTTPException(
