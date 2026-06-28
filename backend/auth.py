@@ -12,7 +12,7 @@ SECRET_KEY = "STOP_ABOS_SUPER_SECRET_KEY_FOR_MVP_ONLY"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 1 semaine
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 def verifier_mot_de_passe(mot_de_passe_clair, mot_de_passe_hache):
     return pwd_context.verify(mot_de_passe_clair, mot_de_passe_hache)
