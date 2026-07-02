@@ -55,21 +55,37 @@ def obtenir_utilisateur(db: Session, email: str):
     return db.query(models.Utilisateur).filter(models.Utilisateur.email == email).first()
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+    logger.warning(f"=== [BACKEND AUTH] Validation du token JWT ===")
+    
     exception_identifiants = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Impossible de valider les identifiants",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
+        logger.warning(f"[BACKEND AUTH] Email extrait du JWT: {email}")
+        
         if email is None:
+            logger.warning("[BACKEND AUTH ERROR] Le token JWT ne contient pas d'email (sub). Raison exacte du 401.")
             raise exception_identifiants
         donnees_token = schemas.TokenData(email=email)
-    except JWTError:
+    except JWTError as e:
+        logger.warning(f"[BACKEND AUTH ERROR] Échec de décodage du token: {e}. Raison exacte du 401.")
         raise exception_identifiants
     
+    # Log de la base utilisée
+    logger.warning(f"[BACKEND AUTH] Base utilisée: {db.get_bind().url}")
+    
     utilisateur = obtenir_utilisateur(db, email=donnees_token.email)
+    
     if utilisateur is None:
+        logger.warning(f"[BACKEND AUTH ERROR] L'utilisateur '{donnees_token.email}' n'a pas été trouvé. Résultat de la requête SQL = None. Raison exacte du 401.")
         raise exception_identifiants
+        
+    logger.warning(f"[BACKEND AUTH SUCCESS] Utilisateur '{utilisateur.email}' authentifié avec succès.")
     return utilisateur

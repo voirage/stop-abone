@@ -46,6 +46,8 @@ class AbonnementBase(BaseModel):
     prochaine_date_renouvellement: Optional[date] = None
     numero_contrat: Optional[str] = None
     statut: StatutAbonnement = StatutAbonnement.ACTIF
+    date_souscription: Optional[date] = None
+    renouvellement_auto: bool = True
 
 class AbonnementCreation(AbonnementBase):
     pass
@@ -57,6 +59,8 @@ class AbonnementMiseAJour(BaseModel):
     frequence: Optional[FrequenceAbonnement] = None
     prochaine_date_renouvellement: Optional[date] = None
     statut: Optional[StatutAbonnement] = None
+    date_souscription: Optional[date] = None
+    renouvellement_auto: Optional[bool] = None
 
 class Abonnement(AbonnementBase):
     id: int

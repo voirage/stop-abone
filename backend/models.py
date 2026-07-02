@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Enum, DateTime
+from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Enum, DateTime, Boolean
 from sqlalchemy.orm import relationship
 import enum
 from database import Base
@@ -34,6 +34,8 @@ class Abonnement(Base):
     prochaine_date_renouvellement = Column(Date, nullable=False)
     numero_contrat = Column(String, nullable=True)
     statut = Column(Enum(StatutAbonnement), default=StatutAbonnement.ACTIF, nullable=False)
+    date_souscription = Column(Date, nullable=True)
+    renouvellement_auto = Column(Boolean, default=True, nullable=False)
     
     proprietaire_id = Column(Integer, ForeignKey("utilisateurs.id"))
     proprietaire = relationship("Utilisateur", back_populates="abonnements")

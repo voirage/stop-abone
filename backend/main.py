@@ -193,16 +193,31 @@ def lister_abonnements(
     db: Session = Depends(database.get_db),
     utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
-    abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
-    return abonnements
+    logger.warning(f"=== [DEBUG BACKEND] GET /abonnements ===")
+    logger.warning(f"Chemin de la base utilisée: {db.get_bind().url}")
+    logger.warning(f"Email utilisateur connecté: {utilisateur_actuel.email}")
+    logger.warning(f"ID utilisateur: {utilisateur_actuel.id}")
+    
+    try:
+        abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
+        logger.warning(f"Nombre d'abonnements trouvés pour cet utilisateur: {len(abonnements)}")
+        return abonnements
+    except Exception as e:
+        logger.warning(f"[BACKEND SQL ERROR] Erreur lors de la requête SQL: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
 @app.get("/abonnements/resume", response_model=schemas.ResumeAbonnements, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def obtenir_resume_abonnements(
     db: Session = Depends(database.get_db),
     utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
-    abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
-    
+    logger.warning(f"=== [BACKEND LOG] GET /abonnements/resume appelé pour l'utilisateur ID {utilisateur_actuel.id} ===")
+    try:
+        abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
+    except Exception as e:
+        logger.warning(f"[BACKEND SQL ERROR] Erreur SQL dans le résumé: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+        
     total_mensuel = 0.0
     total_annuel = 0.0
     
