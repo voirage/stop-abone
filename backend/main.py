@@ -300,3 +300,60 @@ def telecharger_lettre_resiliation(
         media_type="application/pdf"
     )
 
+@app.post("/admin/seed", tags=["Admin"], dependencies=[Depends(auth.get_current_user)])
+def seed_donnees_test(
+    db: Session = Depends(database.get_db),
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
+):
+    """
+    Route pour injecter les données de test directement dans la base de données du conteneur web actif.
+    Indispensable sur Railway si on utilise SQLite sans volume persistant.
+    """
+    from datetime import date, timedelta
+    
+    aujourd_hui = date.today()
+    prochain_mois = aujourd_hui + timedelta(days=30)
+    
+    abos = [
+        models.Abonnement(
+            nom="Canal+ Ciné Séries",
+            categorie="Streaming",
+            prix=39.99,
+            frequence=models.FrequenceAbonnement.MENSUEL,
+            prochaine_date_renouvellement=prochain_mois,
+            statut=models.StatutAbonnement.ACTIF,
+            date_souscription=date(2022, 2, 1),
+            renouvellement_auto=True,
+            proprietaire_id=utilisateur_actuel.id
+        ),
+        models.Abonnement(
+            nom="Netflix Premium",
+            categorie="Streaming",
+            prix=19.99,
+            frequence=models.FrequenceAbonnement.MENSUEL,
+            prochaine_date_renouvellement=prochain_mois,
+            statut=models.StatutAbonnement.ACTIF,
+            date_souscription=date(2023, 1, 15),
+            renouvellement_auto=True,
+            proprietaire_id=utilisateur_actuel.id
+        ),
+        models.Abonnement(
+            nom="Spotify Premium",
+            categorie="Musique",
+            prix=10.99,
+            frequence=models.FrequenceAbonnement.MENSUEL,
+            prochaine_date_renouvellement=prochain_mois,
+            statut=models.StatutAbonnement.ACTIF,
+            date_souscription=date(2021, 6, 10),
+            renouvellement_auto=True,
+            proprietaire_id=utilisateur_actuel.id
+        )
+    ]
+    
+    for abo in abos:
+        db.add(abo)
+        
+    db.commit()
+    return {"message": "Données de test ajoutées avec succès à la base SQLite du serveur web !"}
+
+
