@@ -355,5 +355,45 @@ def seed_donnees_test(
         
     db.commit()
     return {"message": "Données de test ajoutées avec succès à la base SQLite du serveur web !"}
+@app.post("/abonnements/scan-demo")
+def scan_demo_abonnements(
+    db: Session = Depends(database.get_db),
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
+):
+    from datetime import date, timedelta
 
+    aujourd_hui = date.today()
+    date_renouvellement = aujourd_hui + timedelta(days=30)
+    date_debut = aujourd_hui - timedelta(days=180)
 
+    abonnements = [
+        ("Spotify Premium", "Musique", 10.99, models.FrequenceAbonnement.MENSUEL, "SPOTIFY-DEMO"),
+        ("Amazon Prime", "Streaming", 6.99, models.FrequenceAbonnement.MENSUEL, "PRIME-DEMO"),
+        ("Disney+", "Streaming", 11.99, models.FrequenceAbonnement.MENSUEL, "DISNEY-DEMO"),
+        ("Apple Music", "Musique", 10.99, models.FrequenceAbonnement.MENSUEL, "APPLEMUSIC-DEMO"),
+    ]
+
+    for nom, categorie, prix, frequence, contrat in abonnements:
+        existe = db.query(models.Abonnement).filter(
+            models.Abonnement.proprietaire_id == utilisateur_actuel.id,
+            models.Abonnement.nom == nom
+        ).first()
+
+        if not existe:
+            nouveau_abo = models.Abonnement(
+                nom=nom,
+                categorie=categorie,
+                prix=prix,
+                frequence=frequence,
+                date_souscription=date_debut,
+                prochaine_date_renouvellement=date_renouvellement,
+                numero_contrat=contrat,
+                renouvellement_auto=True,
+                statut=models.StatutAbonnement.ACTIF,
+                proprietaire_id=utilisateur_actuel.id
+            )
+            db.add(nouveau_abo)
+
+    db.commit()
+
+    return {"message": "Scan démo terminé"}
