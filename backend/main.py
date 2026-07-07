@@ -355,54 +355,5 @@ def seed_donnees_test(
         
     db.commit()
     return {"message": "Données de test ajoutées avec succès à la base SQLite du serveur web !"}
-    @app.post("/admin/seed", tags=["Admin"])
-def seed_donnees_test(
-    db: Session = Depends(database.get_db),
-    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
-):
-    from datetime import date, timedelta
-
-    aujourd_hui = date.today()
-
-    donnees = [
-        {
-            "nom": "Canal+ Ciné Séries",
-            "categorie": "Streaming",
-            "prix": 39.99,
-            "frequence": "mensuel",
-            "date_debut": aujourd_hui - timedelta(days=420),
-            "date_dernier_usage": aujourd_hui - timedelta(days=180),
-            "statut": "actif",
-        },
-        {
-            "nom": "Netflix Premium",
-            "categorie": "Streaming",
-            "prix": 19.99,
-            "frequence": "mensuel",
-            "date_debut": aujourd_hui - timedelta(days=300),
-            "date_dernier_usage": aujourd_hui - timedelta(days=90),
-            "statut": "actif",
-        },
-        {
-            "nom": "Spotify Premium",
-            "categorie": "Musique",
-            "prix": 10.99,
-            "frequence": "mensuel",
-            "date_debut": aujourd_hui - timedelta(days=250),
-            "date_dernier_usage": aujourd_hui - timedelta(days=20),
-            "statut": "actif",
-        },
-    ]
-
-    for item in donnees:
-        abonnement = models.Abonnement(
-            **item,
-            utilisateur_id=utilisateur_actuel.id
-        )
-        db.add(abonnement)
-
-    db.commit()
-
-    return {"message": "Données de test ajoutées avec succès"}
 
 
