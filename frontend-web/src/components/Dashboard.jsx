@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getResume, getAbonnements, deleteAbonnement } from '../api';
 import AbonnementForm from './AbonnementForm';
 import AbonnementList from './AbonnementList';
-import { calculateStopScore } from '../utils/scoring';
 
 function Dashboard() {
   const [resume, setResume] = useState({ total_mensuel: 0, total_annuel: 0 });
@@ -62,15 +61,8 @@ function Dashboard() {
       });
       setResume({ total_mensuel: calcMensuel, total_annuel: calcAnnuel });
       
-      // Calcul du STOP SCORE en temps réel sur le frontend
-      const enrichedAbos = uniqueAbos.map(abo => {
-        console.log("[TRACE 3] Valeur juste avant l'appel à scoring.js:", abo);
-        const scoring = calculateStopScore(abo);
-        console.log("[TRACE 4] Valeur renvoyée par scoring.js:", scoring);
-        return { ...abo, ...scoring };
-      });
-      console.log("[TRACE 4.5] Valeur finale avant setAbonnements:", enrichedAbos);
-      setAbonnements(enrichedAbos);
+      // Le STOP SCORE est maintenant renvoyé par le backend
+      setAbonnements(uniqueAbos);
       
       // Load saved economies from local storage
       const saved = localStorage.getItem('stopabos_economies_realisees');
@@ -104,9 +96,9 @@ function Dashboard() {
     return <div className="loading">Analyse de vos données financières en cours...</div>;
   }
 
-  // --- CALCULS DU DASHBOARD (MOTEUR STOP SCORE FRONTEND) ---
-  const abosOublies = abonnements.filter(abo => abo.score >= 61);
-  const abosASurveiller = abonnements.filter(abo => abo.score >= 31 && abo.score <= 60);
+  // --- CALCULS DU DASHBOARD (MOTEUR STOP SCORE BACKEND) ---
+  const abosOublies = abonnements.filter(abo => abo.niveau === "Probablement oublié");
+  const abosASurveiller = abonnements.filter(abo => abo.niveau === "À surveiller");
   
   const abonnementPrioritaire = abonnements.length > 0 ? [...abonnements].sort((a, b) => b.score - a.score)[0] : null;
 
@@ -199,8 +191,8 @@ function Dashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {[...abonnements].sort((a, b) => b.score - a.score).slice(0, 3).map(abo => {
               let icon = '🟢';
-              if (abo.score >= 61) icon = '🔴';
-              else if (abo.score >= 31) icon = '🟠';
+              if (abo.niveau === "Probablement oublié") icon = '🔴';
+              else if (abo.niveau === "À surveiller") icon = '🟠';
 
               return (
                 <div key={abo.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', border: '1px solid var(--border-color)', borderRadius: '8px', flexWrap: 'wrap', gap: '10px' }}>

@@ -65,6 +65,12 @@ class AbonnementMiseAJour(BaseModel):
 class Abonnement(AbonnementBase):
     id: int
     proprietaire_id: int
+    score: Optional[int] = None
+    niveau: Optional[str] = None
+    couleur: Optional[str] = None
+    explication: Optional[List[str]] = None
+    action: Optional[str] = None
+    economieAnnuelle: Optional[float] = None
 
     class Config:
         from_attributes = True

@@ -220,10 +220,10 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
           let borderStyle = '1px solid var(--border-color)';
           let riskIcon = '🟢';
           
-          if (abo.score >= 61) {
+          if (abo.niveau === "Probablement oublié") {
             riskIcon = '🔴';
             borderStyle = '1px solid #fc8181';
-          } else if (abo.score >= 31) {
+          } else if (abo.niveau === "À surveiller") {
             riskIcon = '🟠';
             borderStyle = '1px solid #f6ad55';
           }

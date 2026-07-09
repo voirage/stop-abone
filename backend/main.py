@@ -13,6 +13,7 @@ logger = logging.getLogger("uvicorn.error")
 
 import models, schemas, auth, database
 from pdf_generator import generer_lettre_resiliation
+import scoring
 
 # Création des tables dans la base de données
 models.Base.metadata.create_all(bind=database.engine)
@@ -186,6 +187,12 @@ def ajouter_abonnement(
     db.add(nouvel_abonnement)
     db.commit()
     db.refresh(nouvel_abonnement)
+    
+    # Calculate score
+    score_data = scoring.calculate_stop_score(nouvel_abonnement)
+    for key, value in score_data.items():
+        setattr(nouvel_abonnement, key, value)
+        
     return nouvel_abonnement
 
 @app.get("/abonnements", response_model=List[schemas.Abonnement], tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
@@ -201,6 +208,13 @@ def lister_abonnements(
     try:
         abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
         logger.warning(f"Nombre d'abonnements trouvés pour cet utilisateur: {len(abonnements)}")
+        
+        # Calculate score for each subscription
+        for abo in abonnements:
+            score_data = scoring.calculate_stop_score(abo)
+            for key, value in score_data.items():
+                setattr(abo, key, value)
+                
         return abonnements
     except Exception as e:
         logger.warning(f"[BACKEND SQL ERROR] Erreur lors de la requête SQL: {e}")
@@ -253,6 +267,12 @@ def modifier_abonnement(
         
     db.commit()
     db.refresh(abonnement_bd)
+    
+    # Calculate score
+    score_data = scoring.calculate_stop_score(abonnement_bd)
+    for key, value in score_data.items():
+        setattr(abonnement_bd, key, value)
+        
     return abonnement_bd
 
 @app.delete("/abonnements/{abonnement_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
@@ -364,7 +384,7 @@ def scan_demo_abonnements(
 
     aujourd_hui = date.today()
     date_renouvellement = aujourd_hui + timedelta(days=30)
-    date_debut = aujourd_hui - timedelta(days=180)
+    date_debut = aujourd_hui - timedelta(days=1500)
 
     abonnements = [
         ("Spotify Premium", "Musique", 10.99, models.FrequenceAbonnement.MENSUEL, "SPOTIFY-DEMO"),
