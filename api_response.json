@@ -1,0 +1,90 @@
+[
+  {
+    "nom": "Spotify Premium",
+    "categorie": "Musique",
+    "prix": 10.99,
+    "frequence": "mensuel",
+    "prochaine_date_renouvellement": "2026-08-08",
+    "numero_contrat": "SPOTIFY-DEMO",
+    "statut": "actif",
+    "date_souscription": "2022-05-31",
+    "renouvellement_auto": true,
+    "id": 1,
+    "proprietaire_id": 1,
+    "score": 65,
+    "niveau": "À surveiller",
+    "couleur": "var(--warning)",
+    "explication": [
+      "Cet abonnement obtient un score de 65/100. Il a été classé 'À surveiller' car il est actif depuis plus de 2 ans (49 mois), se renouvelle automatiquement et représente un budget de 131.88 € par an.",
+      "💡 Action recommandée : Vérifier son utilisation"
+    ],
+    "action": "Vérifier son utilisation",
+    "economieAnnuelle": 131.88
+  },
+  {
+    "nom": "Amazon Prime",
+    "categorie": "Streaming",
+    "prix": 6.99,
+    "frequence": "mensuel",
+    "prochaine_date_renouvellement": "2026-08-08",
+    "numero_contrat": "PRIME-DEMO",
+    "statut": "actif",
+    "date_souscription": "2022-05-31",
+    "renouvellement_auto": true,
+    "id": 2,
+    "proprietaire_id": 1,
+    "score": 60,
+    "niveau": "À surveiller",
+    "couleur": "var(--warning)",
+    "explication": [
+      "Cet abonnement obtient un score de 60/100. Il a été classé 'À surveiller' car il est actif depuis plus de 2 ans (49 mois) et se renouvelle automatiquement.",
+      "💡 Action recommandée : Vérifier son utilisation"
+    ],
+    "action": "Vérifier son utilisation",
+    "economieAnnuelle": 83.88
+  },
+  {
+    "nom": "Disney+",
+    "categorie": "Streaming",
+    "prix": 11.99,
+    "frequence": "mensuel",
+    "prochaine_date_renouvellement": "2026-08-08",
+    "numero_contrat": "DISNEY-DEMO",
+    "statut": "actif",
+    "date_souscription": "2022-05-31",
+    "renouvellement_auto": true,
+    "id": 3,
+    "proprietaire_id": 1,
+    "score": 65,
+    "niveau": "À surveiller",
+    "couleur": "var(--warning)",
+    "explication": [
+      "Cet abonnement obtient un score de 65/100. Il a été classé 'À surveiller' car il est actif depuis plus de 2 ans (49 mois), se renouvelle automatiquement et représente un budget de 143.88 € par an.",
+      "💡 Action recommandée : Vérifier son utilisation"
+    ],
+    "action": "Vérifier son utilisation",
+    "economieAnnuelle": 143.88
+  },
+  {
+    "nom": "Apple Music",
+    "categorie": "Musique",
+    "prix": 10.99,
+    "frequence": "mensuel",
+    "prochaine_date_renouvellement": "2026-08-08",
+    "numero_contrat": "APPLEMUSIC-DEMO",
+    "statut": "actif",
+    "date_souscription": "2022-05-31",
+    "renouvellement_auto": true,
+    "id": 4,
+    "proprietaire_id": 1,
+    "score": 65,
+    "niveau": "À surveiller",
+    "couleur": "var(--warning)",
+    "explication": [
+      "Cet abonnement obtient un score de 65/100. Il a été classé 'À surveiller' car il est actif depuis plus de 2 ans (49 mois), se renouvelle automatiquement et représente un budget de 131.88 € par an.",
+      "💡 Action recommandée : Vérifier son utilisation"
+    ],
+    "action": "Vérifier son utilisation",
+    "economieAnnuelle": 131.88
+  }
+]
