@@ -1,9 +1,6 @@
 import axios from 'axios';
 
-// Pour tester avec toutes les nouvelles colonnes (date_souscription, renouvellement_auto)
-// commentez l'URL Railway et décommentez l'URL locale.
-// const API_URL = 'http://127.0.0.1:8000';
-const API_URL = 'https://stop-abone-production.up.railway.app';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Création d'une instance axios configurée
 const api = axios.create({
@@ -37,6 +34,7 @@ api.interceptors.response.use(
     
     // Déconnexion complète forcée si le token est invalide/expiré (401)
     if (error.response && error.response.status === 401) {
+
       console.warn("[API ERROR] Erreur 401: Déconnexion forcée et suppression du token.");
       localStorage.removeItem('access_token');
       sessionStorage.removeItem('access_token');
@@ -67,6 +65,16 @@ export const register = async (email, password) => {
   return response.data;
 };
 
+export const forgotPassword = async (email) => {
+  const response = await api.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+export const resetPassword = async (token, new_password, confirm_password) => {
+  const response = await api.post('/auth/reset-password', { token, new_password, confirm_password });
+  return response.data;
+};
+
 export const getResume = async () => {
   const response = await api.get('/abonnements/resume');
   return response.data;
@@ -93,7 +101,7 @@ export const downloadLettreResiliation = async (id, nom) => {
     responseType: 'blob', // Important pour télécharger un fichier
   });
   
-  // Créer un lien pour forcer le téléchargement
+  // Créer un lien pour force le téléchargement
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;
@@ -101,6 +109,41 @@ export const downloadLettreResiliation = async (id, nom) => {
   document.body.appendChild(link);
   link.click();
   link.remove();
+};
+
+export const analyserCSV = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const token = localStorage.getItem('access_token');
+  const urlComplete = `${api.defaults.baseURL || ''}/imports/csv/analyser`;
+  
+  console.log("=== DEBUG AXIOS analyserCSV ===");
+  console.log("- URL complète appelée:", urlComplete);
+  console.log("- Méthode HTTP: POST");
+  console.log("- Headers Axios (defaults):", api.defaults.headers);
+  console.log("- Présence du Bearer Token:", token ? `Oui (Bearer ${token.substring(0, 10)}...)` : "Non");
+  console.log("- Contenu du FormData:");
+  for (let [key, value] of formData.entries()) {
+    console.log(`  ${key}:`, value);
+  }
+  
+  try {
+    const response = await api.post('/imports/csv/analyser', formData);
+    console.log("=== SUCCES AXIOS analyserCSV ===", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("=== ERREUR AXIOS analyserCSV ===");
+    console.error("- Message d'erreur:", error.message);
+    if (error.response) {
+      console.error("- Réponse d'erreur complète:", error.response);
+      console.error("- Statut:", error.response.status);
+      console.error("- Données (data):", error.response.data);
+    } else {
+      console.error("- Aucune réponse reçue du serveur.");
+    }
+    throw error;
+  }
 };
 
 export default api;

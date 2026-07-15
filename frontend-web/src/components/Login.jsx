@@ -69,6 +69,18 @@ function Login({ onLoginSuccess }) {
             required
           />
         </div>
+        <div style={{ textAlign: 'right', marginTop: '5px' }}>
+          <a 
+            href="/forgot-password" 
+            style={{ fontSize: '0.85rem', color: 'var(--primary-color)', textDecoration: 'none' }}
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = '/forgot-password';
+            }}
+          >
+            Mot de passe oublié ?
+          </a>
+        </div>
         
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <button 

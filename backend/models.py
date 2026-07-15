@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Enum, D
 from sqlalchemy.orm import relationship
 import enum
 from database import Base
+from datetime import datetime
 
 class StatutAbonnement(str, enum.Enum):
     ACTIF = "actif"
@@ -37,5 +38,37 @@ class Abonnement(Base):
     date_souscription = Column(Date, nullable=True)
     renouvellement_auto = Column(Boolean, default=True, nullable=False)
     
+    # --- Champs liés à la détection par CSV ---
+    source_detection = Column(String, default="manuel", nullable=False)
+    libelle_detection = Column(String, nullable=True)
+    nombre_paiements_detectes = Column(Integer, nullable=True)
+    date_premier_paiement = Column(Date, nullable=True)
+    date_dernier_paiement = Column(Date, nullable=True)
+    confiance_detection = Column(String, nullable=True) # faible, moyen, eleve
+    confirme_par_utilisateur = Column(Boolean, default=True, nullable=False)
+    date_confirmation_utilisateur = Column(DateTime, nullable=True)
+
     proprietaire_id = Column(Integer, ForeignKey("utilisateurs.id"))
     proprietaire = relationship("Utilisateur", back_populates="abonnements")
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("utilisateurs.id"), nullable=False)
+    token_hash = Column(String, nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    request_ip = Column(String, nullable=True)
+
+    user = relationship("Utilisateur")
+
+class RateLimit(Base):
+    __tablename__ = "rate_limits"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String, index=True, nullable=True)
+    email = Column(String, index=True, nullable=True)
+    endpoint = Column(String, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

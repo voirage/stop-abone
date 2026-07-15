@@ -29,13 +29,11 @@ class ForgotPasswordRequest(BaseModel):
 
 class ForgotPasswordResponse(BaseModel):
     msg: str
-    reset_code: str
-    expires_in_minutes: int
 
 class ResetPasswordRequest(BaseModel):
-    email: EmailStr
-    code: str
-    nouveau_mot_de_passe: str
+    token: str
+    new_password: str
+    confirm_password: str
 
 # --- Schémas Abonnement ---
 class AbonnementBase(BaseModel):
@@ -48,6 +46,15 @@ class AbonnementBase(BaseModel):
     statut: StatutAbonnement = StatutAbonnement.ACTIF
     date_souscription: Optional[date] = None
     renouvellement_auto: bool = True
+    
+    # --- Champs liés à la détection par CSV ---
+    source_detection: str = "manuel"
+    libelle_detection: Optional[str] = None
+    nombre_paiements_detectes: Optional[int] = None
+    date_premier_paiement: Optional[date] = None
+    date_dernier_paiement: Optional[date] = None
+    confiance_detection: Optional[str] = None
+    confirme_par_utilisateur: bool = True
 
 class AbonnementCreation(AbonnementBase):
     pass
@@ -61,6 +68,31 @@ class AbonnementMiseAJour(BaseModel):
     statut: Optional[StatutAbonnement] = None
     date_souscription: Optional[date] = None
     renouvellement_auto: Optional[bool] = None
+    source_detection: Optional[str] = None
+    libelle_detection: Optional[str] = None
+    nombre_paiements_detectes: Optional[int] = None
+    date_premier_paiement: Optional[date] = None
+    date_dernier_paiement: Optional[date] = None
+    confiance_detection: Optional[str] = None
+    confirme_par_utilisateur: Optional[bool] = None
+
+class CandidatAbonnement(BaseModel):
+    nom: str
+    categorie: str
+    prix: float
+    frequence: FrequenceAbonnement
+    prochaine_date_renouvellement: date
+    date_souscription: date
+    statut: StatutAbonnement = StatutAbonnement.ACTIF
+    renouvellement_auto: bool = True
+    source_detection: str = "import_csv"
+    libelle_detection: Optional[str] = None
+    nombre_paiements_detectes: int
+    date_premier_paiement: date
+    date_dernier_paiement: date
+    confiance_detection: str
+    explication_detection: str
+    moyenne_intervalle: Optional[float] = None
 
 class Abonnement(AbonnementBase):
     id: int

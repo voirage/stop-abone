@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, Security
+from fastapi import FastAPI, Depends, HTTPException, status, Security, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -8,12 +8,16 @@ from datetime import timedelta, datetime
 import random
 import string
 import logging
+import secrets
+import hashlib
+import re
 
 logger = logging.getLogger("uvicorn.error")
 
 import models, schemas, auth, database
 from pdf_generator import generer_lettre_resiliation
 import scoring
+from email_service import send_reset_password_email
 
 # Création des tables dans la base de données
 models.Base.metadata.create_all(bind=database.engine)
@@ -112,68 +116,127 @@ def connexion_pour_token_acces(form_data: Annotated[OAuth2PasswordRequestForm, D
 
 
 @app.post("/auth/forgot-password", response_model=schemas.ForgotPasswordResponse, tags=["Authentification"])
-def forgot_password(req: schemas.ForgotPasswordRequest, db: Session = Depends(database.get_db)):
+def forgot_password(req: schemas.ForgotPasswordRequest, request: Request, db: Session = Depends(database.get_db)):
     email_norm = req.email.strip().lower()
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Generic response
+    generic_msg = "Si un compte correspond à cette adresse, un email de réinitialisation a été envoyé."
+    
+    # Rate limit check
+    time_threshold = datetime.utcnow() - timedelta(minutes=15)
+    
+    ip_requests = db.query(models.RateLimit).filter(
+        models.RateLimit.ip_address == client_ip,
+        models.RateLimit.endpoint == "forgot_password",
+        models.RateLimit.created_at >= time_threshold
+    ).count()
+    
+    if ip_requests >= 5:
+        return {"msg": generic_msg}
+        
+    email_requests = db.query(models.RateLimit).filter(
+        models.RateLimit.email == email_norm,
+        models.RateLimit.endpoint == "forgot_password",
+        models.RateLimit.created_at >= time_threshold
+    ).count()
+    
+    if email_requests >= 3:
+        return {"msg": generic_msg}
+        
+    # Record request
+    new_limit = models.RateLimit(ip_address=client_ip, email=email_norm, endpoint="forgot_password")
+    db.add(new_limit)
+    db.commit()
+    
     user = db.query(models.Utilisateur).filter(models.Utilisateur.email == email_norm).first()
     
-    # Generate 6 digit code
-    code = ''.join(random.choices(string.digits, k=6))
-    
     if user:
-        user.reset_code = code
-        user.reset_expiry = datetime.utcnow() + timedelta(minutes=15)
+        # Invalidate old tokens
+        db.query(models.PasswordResetToken).filter(
+            models.PasswordResetToken.user_id == user.id,
+            models.PasswordResetToken.used_at == None
+        ).update({"used_at": datetime.utcnow()})
+        
+        # Generate new token
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.utcnow() + timedelta(minutes=30),
+            request_ip=client_ip
+        )
+        db.add(reset_token)
         db.commit()
-    
-    # In real life, we send an email here.
-    # For MVP, we return it in the response to make it testable on frontend.
-    return {
-        "msg": "Si l'email existe, un code a été généré.",
-        "reset_code": code,
-        "expires_in_minutes": 15
-    }
+        
+        # Send email
+        send_reset_password_email(user.email, raw_token)
+    else:
+        # Dummy hash calculation to mitigate timing attacks
+        _ = hashlib.sha256(secrets.token_urlsafe(32).encode()).hexdigest()
+        
+    return {"msg": generic_msg}
 
 @app.post("/auth/reset-password", tags=["Authentification"])
 def reset_password(req: schemas.ResetPasswordRequest, db: Session = Depends(database.get_db)):
-    email_norm = req.email.strip().lower()
+    if req.new_password != req.confirm_password:
+        raise HTTPException(status_code=400, detail="Les mots de passe ne correspondent pas.")
+        
+    # Check password complexity
+    if len(req.new_password) < 8 or \
+       not re.search(r"[A-Z]", req.new_password) or \
+       not re.search(r"[a-z]", req.new_password) or \
+       not re.search(r"[0-9]", req.new_password):
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre.")
+        
+    token_hash = hashlib.sha256(req.token.encode()).hexdigest()
     
-    stmt = db.query(models.Utilisateur).filter(models.Utilisateur.email == email_norm)
-    logger.warning(f"SQL requête: {str(stmt)}")
+    reset_token = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token_hash == token_hash,
+        models.PasswordResetToken.used_at == None,
+        models.PasswordResetToken.expires_at > datetime.utcnow()
+    ).first()
     
-    utilisateurs_trouves = stmt.all()
-    logger.warning(f"Nombre d'utilisateurs trouvés: {len(utilisateurs_trouves)}")
-    
-    user = utilisateurs_trouves[0] if utilisateurs_trouves else None
-    
-    logger.warning("=== DEBUG RESET PASSWORD ===")
-    logger.warning(f"email recherché: {email_norm}")
-    logger.warning(f"code reçu: {req.code!r}")
-    
-    if user:
-        logger.warning(f"user trouvé: True, ID: {user.id}")
-        logger.warning(f"code base: {user.reset_code!r}")
-        logger.warning(f"expiry base: {user.reset_expiry!r}")
-    logger.warning(f"utcnow: {datetime.utcnow()!r}")
-
+    if not reset_token:
+        raise HTTPException(status_code=400, detail="Jeton invalide ou expiré.")
+        
+    user = db.query(models.Utilisateur).filter(models.Utilisateur.id == reset_token.user_id).first()
     if not user:
-        raise HTTPException(status_code=400, detail="Code invalide ou expiré")
+        raise HTTPException(status_code=400, detail="Utilisateur introuvable.")
         
-    db_code = str(user.reset_code).strip() if user.reset_code else ""
-    req_code = str(req.code).strip()
-    
-    if db_code != req_code:
-        logger.warning("Échec: les codes ne correspondent pas")
-        raise HTTPException(status_code=400, detail="Code invalide ou expiré")
+    # Check if new password is the same as the old one
+    if auth.verifier_mot_de_passe(req.new_password, user.mot_de_passe_hache):
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit être différent de l'ancien.")
         
-    if not user.reset_expiry or user.reset_expiry < datetime.utcnow():
-        logger.warning("Échec: le code est expiré")
-        raise HTTPException(status_code=400, detail="Code invalide ou expiré")
-    
-    user.mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(req.nouveau_mot_de_passe)
-    user.reset_code = None
-    user.reset_expiry = None
+    # Update password
+    user.mot_de_passe_hache = auth.obtenir_hachage_mot_de_passe(req.new_password)
+    reset_token.used_at = datetime.utcnow()
     db.commit()
     
-    return {"msg": "Mot de passe réinitialisé avec succès"}
+    return {"msg": "Mot de passe réinitialisé avec succès."}
+
+# --- Routes d'Import CSV ---
+from fastapi import UploadFile, File
+import csv_import
+
+@app.post("/imports/csv/analyser", response_model=List[schemas.CandidatAbonnement], tags=["Imports"], dependencies=[Depends(auth.get_current_user)])
+async def analyser_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db),
+    utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
+):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Le fichier doit être au format CSV.")
+    
+    # Limite simple de taille de fichier pour le MVP
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024: # 2MB
+        raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 2 Mo).")
+        
+    candidats = csv_import.analyze_csv(content)
+    return candidats
 
 # --- Routes Abonnements ---
 
