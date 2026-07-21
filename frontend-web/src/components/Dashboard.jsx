@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getResume, getAbonnements, deleteAbonnement } from '../api';
 import AbonnementForm from './AbonnementForm';
 import AbonnementList from './AbonnementList';
+import ImportCSV from './ImportCSV';
 
 function Dashboard() {
   const [resume, setResume] = useState({ total_mensuel: 0, total_annuel: 0 });
@@ -10,6 +11,7 @@ function Dashboard() {
   const [error, setError] = useState('');
   
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImportCSV, setShowImportCSV] = useState(false);
   const [economiesRealisees, setEconomiesRealisees] = useState(0);
 
   const loadData = useCallback(async () => {
@@ -61,8 +63,29 @@ function Dashboard() {
       });
       setResume({ total_mensuel: calcMensuel, total_annuel: calcAnnuel });
       
-      // Le STOP SCORE est maintenant renvoyé par le backend
-      setAbonnements(uniqueAbos);
+      // Appliquer la logique stricte demandée par l'utilisateur pour le niveau et la couleur
+      const processedAbos = uniqueAbos.map(abo => {
+        let niveau = abo.niveau;
+        let couleur = abo.couleur;
+        
+        if (abo.type_recurrent === 'non_subscription' || abo.score === 0 || abo.niveau === 'Exclu') {
+          niveau = "Exclu";
+          couleur = "var(--text-muted)";
+        } else if (abo.score >= 65) {
+          niveau = "Priorité élevée";
+          couleur = "var(--danger)";
+        } else if (abo.score >= 36) {
+          niveau = "À examiner";
+          couleur = "var(--warning)";
+        } else {
+          niveau = "Faible priorité";
+          couleur = "var(--success)";
+        }
+        
+        return { ...abo, niveau, couleur };
+      });
+      
+      setAbonnements(processedAbos);
       
       // Load saved economies from local storage
       const saved = localStorage.getItem('stopabos_economies_realisees');
@@ -97,8 +120,8 @@ function Dashboard() {
   }
 
   // --- CALCULS DU DASHBOARD (MOTEUR STOP SCORE BACKEND) ---
-  const abosOublies = abonnements.filter(abo => abo.niveau === "Probablement oublié");
-  const abosASurveiller = abonnements.filter(abo => abo.niveau === "À surveiller");
+  const abosOublies = abonnements.filter(abo => abo.niveau === "Priorité élevée");
+  const abosASurveiller = abonnements.filter(abo => abo.niveau === "À examiner");
   
   const abonnementPrioritaire = abonnements.length > 0 ? [...abonnements].sort((a, b) => b.score - a.score)[0] : null;
 
@@ -123,15 +146,15 @@ function Dashboard() {
       <h2 style={{ fontSize: '1.8rem', marginBottom: '20px', marginTop: '20px' }}>Analyse STOP</h2>
       <div className="dashboard-grid">
         <div className="metric-card" style={{ borderTop: '4px solid var(--danger)' }}>
-          <div className="metric-title text-danger">Probablement oubliés</div>
+          <div className="metric-title text-danger">Priorité élevée</div>
           <div className="metric-value">{abosOublies.length}</div>
-          <div style={{ marginTop: 'auto', paddingTop: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Score &gt; 70</div>
+          <div style={{ marginTop: 'auto', paddingTop: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Score &gt;= 65</div>
         </div>
 
         <div className="metric-card" style={{ borderTop: '4px solid var(--warning)' }}>
-          <div className="metric-title text-warning">À surveiller</div>
+          <div className="metric-title text-warning">À examiner</div>
           <div className="metric-value">{abosASurveiller.length}</div>
-          <div style={{ marginTop: 'auto', paddingTop: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Score 41-70</div>
+          <div style={{ marginTop: 'auto', paddingTop: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Score 36-64</div>
         </div>
 
         <div className="metric-card" style={{ backgroundColor: '#fff5f5', border: '1px solid #fed7d7' }}>
@@ -191,8 +214,8 @@ function Dashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {[...abonnements].sort((a, b) => b.score - a.score).slice(0, 3).map(abo => {
               let icon = '🟢';
-              if (abo.niveau === "Probablement oublié") icon = '🔴';
-              else if (abo.niveau === "À surveiller") icon = '🟠';
+              if (abo.niveau === "Priorité élevée") icon = '🔴';
+              else if (abo.niveau === "À examiner") icon = '🟠';
 
               return (
                 <div key={abo.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', border: '1px solid var(--border-color)', borderRadius: '8px', flexWrap: 'wrap', gap: '10px' }}>
@@ -209,18 +232,40 @@ function Dashboard() {
         )}
       </div>
 
-      <div style={{ marginBottom: '40px', textAlign: 'center' }}>
+      <div style={{ marginBottom: '40px', textAlign: 'center', display: 'flex', gap: '15px', justifyContent: 'center' }}>
         <button 
           className="btn btn-outline"
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            setShowAddForm(!showAddForm);
+            if (showImportCSV) setShowImportCSV(false);
+          }}
         >
           {showAddForm ? 'Fermer le formulaire' : '+ Ajouter manuellement un abonnement'}
+        </button>
+
+        <button 
+          className="btn btn-primary"
+          onClick={() => {
+            setShowImportCSV(!showImportCSV);
+            if (showAddForm) setShowAddForm(false);
+          }}
+        >
+          {showImportCSV ? 'Fermer l\'import' : 'Importer un relevé bancaire'}
         </button>
       </div>
 
       {showAddForm && (
         <div className="animate-up" style={{ marginBottom: '40px' }}>
           <AbonnementForm onAbonnementAdded={loadData} />
+        </div>
+      )}
+
+      {showImportCSV && (
+        <div className="animate-up" style={{ marginBottom: '40px' }}>
+          <ImportCSV onImportSuccess={() => {
+            setShowImportCSV(false);
+            loadData();
+          }} />
         </div>
       )}
       

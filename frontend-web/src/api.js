@@ -61,7 +61,7 @@ export const login = async (email, password) => {
 };
 
 export const register = async (email, password) => {
-  const response = await api.post('/inscription', { email, password });
+  const response = await api.post('/inscription', { email, mot_de_passe: password });
   return response.data;
 };
 

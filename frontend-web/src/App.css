@@ -57,12 +57,13 @@ body {
   margin-bottom: 3rem;
 }
 
-.app-header h1 {
+.app-logo {
+  height: 85px; /* Hauteur nettement augmentée selon les directives */
+  width: auto;
+  max-width: 320px;
+  object-fit: contain;
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--text-dark);
+  display: block;
 }
 
 /* Typography Helpers */
@@ -286,4 +287,12 @@ h1, h2, h3, h4 {
   font-weight: 800;
   margin: 0 auto 20px auto;
   border: 8px solid var(--border-color);
+}
+
+/* Responsiveness additionnelle pour le header et logo */
+@media (max-width: 600px) {
+  .app-logo {
+    height: 55px; /* Réduit la hauteur pour s'assurer que ça rentre avec le bouton */
+    max-width: 200px;
+  }
 }

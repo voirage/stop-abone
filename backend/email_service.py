@@ -41,15 +41,22 @@ L'équipe STOP-ABOS
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         try:
+            logger.warning(f"[DEBUG EMAIL] Connexion à {smtp_host}:{smtp_port}...")
             server = smtplib.SMTP(smtp_host, smtp_port)
             if smtp_use_tls:
                 server.starttls()
+                logger.warning("[DEBUG EMAIL] TLS activé.")
             if smtp_user and smtp_password:
                 server.login(smtp_user, smtp_password)
-            server.send_message(msg)
+                logger.warning("[DEBUG EMAIL] Authentification réussie.")
+            
+            refused = server.send_message(msg)
+            logger.warning(f"[DEBUG EMAIL] Message envoyé ! Refus par destinataire : {refused}")
             server.quit()
+        except smtplib.SMTPResponseException as e:
+            logger.error(f"[EMAIL SERVICE ERROR] SMTPResponseException - Code: {e.smtp_code}, Erreur: {e.smtp_error.decode('utf-8', 'ignore')}")
         except Exception as e:
-            logger.error(f"[EMAIL SERVICE ERROR] Erreur lors de l'envoi SMTP: {e}")
+            logger.error(f"[EMAIL SERVICE ERROR] Exception générale lors de l'envoi SMTP: {e}")
     else:
         # Mock en local
         logger.warning(f"=== [MOCK EMAIL SERVICE] ===")

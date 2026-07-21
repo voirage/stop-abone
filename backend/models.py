@@ -13,6 +13,11 @@ class FrequenceAbonnement(str, enum.Enum):
     MENSUEL = "mensuel"
     ANNUEL = "annuel"
 
+class TypeRecurrent(str, enum.Enum):
+    SUBSCRIPTION = "subscription"
+    RECURRING_CONTRACT = "recurring_contract"
+    NON_SUBSCRIPTION = "non_subscription"
+
 class Utilisateur(Base):
     __tablename__ = "utilisateurs"
 
@@ -31,10 +36,11 @@ class Abonnement(Base):
     nom = Column(String, index=True, nullable=False)
     categorie = Column(String, index=True, nullable=False) # ex: Telecom, Streaming, Banque
     prix = Column(Float, nullable=False)
-    frequence = Column(Enum(FrequenceAbonnement), default=FrequenceAbonnement.MENSUEL, nullable=False)
+    frequence = Column(Enum(FrequenceAbonnement, values_callable=lambda obj: [e.value for e in obj]), default=FrequenceAbonnement.MENSUEL, nullable=False)
     prochaine_date_renouvellement = Column(Date, nullable=False)
     numero_contrat = Column(String, nullable=True)
-    statut = Column(Enum(StatutAbonnement), default=StatutAbonnement.ACTIF, nullable=False)
+    statut = Column(Enum(StatutAbonnement, values_callable=lambda obj: [e.value for e in obj]), default=StatutAbonnement.ACTIF, nullable=False)
+    type_recurrent = Column(Enum(TypeRecurrent, values_callable=lambda obj: [e.value for e in obj]), default=TypeRecurrent.SUBSCRIPTION, nullable=False)
     date_souscription = Column(Date, nullable=True)
     renouvellement_auto = Column(Boolean, default=True, nullable=False)
     

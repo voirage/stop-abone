@@ -1,10 +1,16 @@
 @echo off
-echo ==============================================
-echo Lancement du Frontend (Expo) pour STOP-ABOS
-echo ==============================================
+echo ============================================
+echo Lancement du Frontend Web Vite pour STOP-ABOS
+echo ============================================
 
-cd stop-abos
+cd /d "%~dp0frontend-web"
 
-echo [Info] Lancement d'Expo...
-call npx expo start --clear
+if not exist "node_modules" (
+    echo [Info] Installation des dependances...
+    npm install
+)
+
+echo [Info] Lancement du serveur Vite...
+npm run dev
+
 pause

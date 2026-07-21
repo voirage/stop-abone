@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { resetPassword } from '../api';
+import PasswordInput from './PasswordInput';
 
 function ResetPassword() {
   const [newPassword, setNewPassword] = useState('');
@@ -61,12 +62,11 @@ function ResetPassword() {
           
           <div style={{ marginBottom: '15px', textAlign: 'left' }}>
             <label style={{ display: 'block', marginBottom: '5px' }}>Nouveau mot de passe</label>
-            <input 
-              type="password" 
+            <PasswordInput 
               value={newPassword} 
               onChange={(e) => setNewPassword(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+              required={true} 
+              style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
             />
             <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '5px', fontSize: '0.8rem' }}>
               Minimum 8 caractères, dont une majuscule, une minuscule et un chiffre.
@@ -75,12 +75,11 @@ function ResetPassword() {
           
           <div style={{ marginBottom: '25px', textAlign: 'left' }}>
             <label style={{ display: 'block', marginBottom: '5px' }}>Confirmer le mot de passe</label>
-            <input 
-              type="password" 
+            <PasswordInput 
               value={confirmPassword} 
               onChange={(e) => setConfirmPassword(e.target.value)} 
-              required 
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
+              required={true} 
+              style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}
             />
           </div>
           

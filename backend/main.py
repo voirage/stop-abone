@@ -5,14 +5,28 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List, Annotated
 from datetime import timedelta, datetime
+from dotenv import load_dotenv
 import random
 import string
 import logging
 import secrets
 import hashlib
 import re
+import os
+import sys
+
+# Charger les variables d'environnement depuis le fichier .env
+load_dotenv()
 
 logger = logging.getLogger("uvicorn.error")
+
+logger.warning("==================================================")
+logger.warning(f"[MIGRATION DEBUG] main.py chargé depuis: {os.path.abspath(__file__)}")
+logger.warning(f"[MIGRATION DEBUG] file = {__file__}")
+logger.warning(f"[MIGRATION DEBUG] cwd = {os.getcwd()}")
+logger.warning(f"[MIGRATION DEBUG] sys.path = {sys.path}")
+logger.warning(f"[MIGRATION DEBUG] DATABASE_URL lu: {os.getenv('DATABASE_URL', 'non défini')}")
+logger.warning("==================================================")
 
 import models, schemas, auth, database
 from pdf_generator import generer_lettre_resiliation
@@ -21,6 +35,58 @@ from email_service import send_reset_password_email
 
 # Création des tables dans la base de données
 models.Base.metadata.create_all(bind=database.engine)
+
+# --- Migration de la base de données locale ---
+def run_migrations():
+    import sqlite3
+    import os
+    try:
+        db_url = os.getenv("DATABASE_URL", "sqlite:///./stop_abos.db")
+        if not db_url.startswith("sqlite"):
+            return
+            
+        db_path = db_url.replace("sqlite:///", "")
+        if not os.path.exists(db_path):
+            return
+            
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute("PRAGMA table_info(abonnements);")
+        columns = [info[1] for info in cursor.fetchall()]
+        
+        if "type_recurrent" not in columns:
+            logger.warning("Migration: Ajout de la colonne 'type_recurrent' à la table 'abonnements'")
+            cursor.execute("ALTER TABLE abonnements ADD COLUMN type_recurrent VARCHAR DEFAULT 'subscription';")
+            
+            # Reclassifier les anciennes lignes
+            cursor.execute("SELECT id, nom, categorie FROM abonnements;")
+            rows = cursor.fetchall()
+            
+            from csv_import import classify_transaction
+            for row in rows:
+                abo_id, nom, categorie = row
+                nom = nom or ""
+                categorie = categorie or ""
+                
+                type_rec, _ = classify_transaction(nom, categorie, False)
+                type_rec_str = type_rec.value if hasattr(type_rec, 'value') else str(type_rec)
+                
+                cursor.execute(
+                    "UPDATE abonnements SET type_recurrent = ? WHERE id = ?",
+                    (type_rec_str, abo_id)
+                )
+            conn.commit()
+            logger.warning("Migration 'type_recurrent' terminée avec succès.")
+            
+    except Exception as e:
+        logger.exception(f"Erreur lors de la migration de la base de données: {e}")
+    finally:
+        if 'conn' in locals() and conn:
+            conn.close()
+
+run_migrations()
+
 
 app = FastAPI(
     title="API STOP-ABOS",
@@ -152,6 +218,7 @@ def forgot_password(req: schemas.ForgotPasswordRequest, request: Request, db: Se
     user = db.query(models.Utilisateur).filter(models.Utilisateur.email == email_norm).first()
     
     if user:
+        logger.warning(f"[DEBUG] Utilisateur trouvé pour l'email: {email_norm}")
         # Invalidate old tokens
         db.query(models.PasswordResetToken).filter(
             models.PasswordResetToken.user_id == user.id,
@@ -171,9 +238,11 @@ def forgot_password(req: schemas.ForgotPasswordRequest, request: Request, db: Se
         db.add(reset_token)
         db.commit()
         
+        logger.warning("[DEBUG] Token créé, appel de send_reset_password_email...")
         # Send email
         send_reset_password_email(user.email, raw_token)
     else:
+        logger.warning(f"[DEBUG] Utilisateur introuvable pour {email_norm}. Hachage factice.")
         # Dummy hash calculation to mitigate timing attacks
         _ = hashlib.sha256(secrets.token_urlsafe(32).encode()).hexdigest()
         
@@ -268,20 +337,16 @@ def lister_abonnements(
     logger.warning(f"Email utilisateur connecté: {utilisateur_actuel.email}")
     logger.warning(f"ID utilisateur: {utilisateur_actuel.id}")
     
-    try:
-        abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
-        logger.warning(f"Nombre d'abonnements trouvés pour cet utilisateur: {len(abonnements)}")
-        
-        # Calculate score for each subscription
-        for abo in abonnements:
-            score_data = scoring.calculate_stop_score(abo)
-            for key, value in score_data.items():
-                setattr(abo, key, value)
-                
-        return abonnements
-    except Exception as e:
-        logger.warning(f"[BACKEND SQL ERROR] Erreur lors de la requête SQL: {e}")
-        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+    abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
+    logger.warning(f"Nombre d'abonnements trouvés pour cet utilisateur: {len(abonnements)}")
+    
+    # Calculate score for each subscription
+    for abo in abonnements:
+        score_data = scoring.calculate_stop_score(abo)
+        for key, value in score_data.items():
+            setattr(abo, key, value)
+            
+    return abonnements
 
 @app.get("/abonnements/resume", response_model=schemas.ResumeAbonnements, tags=["Abonnements"], dependencies=[Depends(auth.get_current_user)])
 def obtenir_resume_abonnements(
@@ -292,7 +357,7 @@ def obtenir_resume_abonnements(
     try:
         abonnements = db.query(models.Abonnement).filter(models.Abonnement.proprietaire_id == utilisateur_actuel.id).all()
     except Exception as e:
-        logger.warning(f"[BACKEND SQL ERROR] Erreur SQL dans le résumé: {e}")
+        logger.exception(f"[BACKEND SQL ERROR] Erreur détaillée lors de GET /abonnements/resume: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
         
     total_mensuel = 0.0
@@ -480,3 +545,4 @@ def scan_demo_abonnements(
     db.commit()
 
     return {"message": "Scan démo terminé"}
+# Trigger reload

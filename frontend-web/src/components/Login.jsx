@@ -1,5 +1,36 @@
 import React, { useState } from 'react';
 import { login, register } from '../api';
+import PasswordInput from './PasswordInput';
+
+const formatError = (err, defaultMessage) => {
+  if (!err.response || !err.response.data) {
+    return defaultMessage;
+  }
+  const detail = err.response.data.detail;
+  if (Array.isArray(detail)) {
+    return detail.map(item => {
+      const msg = item.msg || "";
+      const fieldName = item.loc && item.loc.length > 0 ? item.loc[item.loc.length - 1] : "";
+      
+      if (msg.includes('value is not a valid email address')) {
+        return "L'adresse email n'est pas valide.";
+      }
+      if (msg.includes('Field required') || msg.includes('field required')) {
+        return `Le champ ${fieldName === 'mot_de_passe' ? 'mot de passe' : fieldName} est manquant.`;
+      }
+      if (msg.includes('String should have at least')) {
+        return "Le mot de passe est trop court.";
+      }
+      return msg;
+    }).join(" ");
+  } else if (typeof detail === 'string') {
+    if (detail.includes('Cet email est déjà utilisé')) {
+      return "Cet email est déjà utilisé.";
+    }
+    return detail;
+  }
+  return defaultMessage;
+};
 
 function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -19,7 +50,7 @@ function Login({ onLoginSuccess }) {
       localStorage.setItem('access_token', data.access_token);
       onLoginSuccess();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erreur lors de la connexion. Vérifiez vos identifiants.');
+      setError(formatError(err, 'Erreur lors de la connexion. Vérifiez vos identifiants.'));
     } finally {
       setLoading(false);
     }
@@ -35,7 +66,7 @@ function Login({ onLoginSuccess }) {
       await register(email, password);
       setSuccessMsg('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Erreur lors de la création du compte.');
+      setError(formatError(err, 'Erreur lors de la création du compte.'));
     } finally {
       setLoading(false);
     }
@@ -61,12 +92,10 @@ function Login({ onLoginSuccess }) {
         </div>
         <div className="form-group">
           <label>Mot de passe</label>
-          <input 
-            type="password" 
-            className="form-control" 
+          <PasswordInput 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            required
+            required={true}
           />
         </div>
         <div style={{ textAlign: 'right', marginTop: '5px' }}>

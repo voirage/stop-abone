@@ -12,6 +12,13 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
   const [showReasonsModal, setShowReasonsModal] = useState(false);
   const [aboReasons, setAboReasons] = useState(null);
 
+  const getStopScoreLabel = (score, type) => {
+    if (type === 'non_subscription' || score === 0) return 'Exclu';
+    if (score <= 35) return 'Faible priorité';
+    if (score < 65) return 'À examiner';
+    return 'Priorité élevée';
+  };
+
   const startResiliation = async (abo) => {
     setActionLoading(abo.id);
     try {
@@ -187,32 +194,67 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
       )}
 
       {/* Modale des raisons du score */}
-      {showReasonsModal && aboReasons && (
-        <div className="modal-overlay animate-up" style={{ zIndex: 2000 }}>
-          <div className="modal-content" style={{ textAlign: 'left', padding: '30px' }}>
-            <h2 style={{ fontSize: '1.8rem', marginBottom: '20px' }}>Détail du STOP SCORE</h2>
-            <p style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-main)' }}>
-              Voici pourquoi nous vous recommandons de surveiller l'abonnement <strong>{aboReasons.nom}</strong> :
-            </p>
-            <div style={{ paddingLeft: '10px', marginBottom: '30px', fontSize: '1.05rem', color: 'var(--text-dark)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {aboReasons.explication && aboReasons.explication.length > 0 ? (
-                aboReasons.explication.map((reason, idx) => (
-                  <div key={idx}>{reason}</div>
-                ))
+      {showReasonsModal && aboReasons && (() => {
+        const score = aboReasons.score || 0;
+        const niveauModal = getStopScoreLabel(score, aboReasons.type_recurrent);
+        const isExclu = niveauModal === 'Exclu';
+
+        return (
+          <div className="modal-overlay animate-up" style={{ zIndex: 2000 }}>
+            <div className="modal-content" style={{ textAlign: 'left', padding: '30px' }}>
+              <h2 style={{ fontSize: '1.8rem', marginBottom: '20px' }}>Détail du STOP SCORE</h2>
+              
+              {isExclu ? (
+                <p style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-main)' }}>
+                  Ce paiement a été classé comme dépense courante non résiliable.<br />
+                  Aucune action requise.<br /><br />
+                  <strong>Détail de la classification :</strong>
+                </p>
               ) : (
-                <div>Aucun point de vigilance particulier.</div>
+                <>
+                  <p style={{ fontSize: '1.1rem', marginBottom: '10px', color: 'var(--text-main)' }}>
+                    Cet abonnement obtient un score de <strong>{score}/100</strong>. Il est classé “<strong>{niveauModal}</strong>” car :
+                  </p>
+                </>
               )}
+
+              <div style={{ paddingLeft: '10px', marginBottom: '25px', fontSize: '1.05rem', color: 'var(--text-dark)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {aboReasons.explication && aboReasons.explication.length > 0 ? (
+                  aboReasons.explication.map((reason, idx) => (
+                    <div key={idx}>• {reason}</div>
+                  ))
+                ) : (
+                  <div>Aucun point de vigilance particulier.</div>
+                )}
+              </div>
+
+              {!isExclu && niveauModal === 'À examiner' && (
+                 <div style={{ marginBottom: '25px', fontSize: '1.05rem', fontWeight: '600', color: 'var(--warning)' }}>
+                   Action recommandée : Vérifier son utilisation
+                 </div>
+              )}
+              {!isExclu && niveauModal === 'Priorité élevée' && (
+                 <div style={{ marginBottom: '25px', fontSize: '1.05rem', fontWeight: '600', color: 'var(--danger)' }}>
+                   Action recommandée : Résiliation conseillée
+                 </div>
+              )}
+              {!isExclu && niveauModal === 'Faible priorité' && (
+                 <div style={{ marginBottom: '25px', fontSize: '1.05rem', fontWeight: '600', color: 'var(--success)' }}>
+                   Action recommandée : Aucune action urgente
+                 </div>
+              )}
+
+              <button 
+                className="btn btn-outline" 
+                style={{ width: '100%' }}
+                onClick={() => setShowReasonsModal(false)}
+              >
+                Fermer
+              </button>
             </div>
-            <button 
-              className="btn btn-outline" 
-              style={{ width: '100%' }}
-              onClick={() => setShowReasonsModal(false)}
-            >
-              Fermer
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="abos-list">
         {sortedAbonnements.map((abo) => {
@@ -220,10 +262,10 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
           let borderStyle = '1px solid var(--border-color)';
           let riskIcon = '🟢';
           
-          if (abo.niveau === "Probablement oublié") {
+          if (abo.niveau === "Priorité élevée") {
             riskIcon = '🔴';
             borderStyle = '1px solid #fc8181';
-          } else if (abo.niveau === "À surveiller") {
+          } else if (abo.niveau === "À examiner") {
             riskIcon = '🟠';
             borderStyle = '1px solid #f6ad55';
           }
@@ -249,9 +291,11 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
                   <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--text-dark)' }}>
                     {abo.prix} € <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/{abo.frequence.toLowerCase()}</span>
                   </div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold' }}>
-                    Économie annuelle : {(abo.economieAnnuelle || 0).toFixed(2)} €
-                  </div>
+                  {abo.type_recurrent !== 'recurring_contract' && (
+                    <div style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold' }}>
+                      Économie annuelle : {(abo.economieAnnuelle || 0).toFixed(2)} €
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -262,6 +306,11 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
                   <div style={{ fontWeight: '500', color: abo.couleur, marginTop: '5px' }}>
                     {riskIcon} {abo.niveau || "Aucun risque"}
                   </div>
+                  {abo.urgence && (
+                    <div style={{ display: 'inline-block', marginTop: '8px', padding: '4px 8px', backgroundColor: '#fed7d7', color: '#c53030', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                      ⚠️ Prélèvement imminent
+                    </div>
+                  )}
                 </div>
                 <button 
                   className="btn btn-outline" 
@@ -272,25 +321,27 @@ function AbonnementList({ abonnements, loading, onAbonnementDeleted }) {
                 </button>
               </div>
 
-              <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <button 
-                  className="btn btn-danger"
-                  style={{ flex: '1 1 250px', padding: '16px' }}
-                  onClick={() => startResiliation(abo)}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === abo.id ? 'Veuillez patienter...' : 'Résilier cet abonnement'}
-                </button>
-                
-                <button 
-                  className="btn btn-outline"
-                  style={{ flex: '0 1 auto', padding: '16px' }}
-                  onClick={() => handleDownloadOnly(abo.id, abo.nom)}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === `dl-${abo.id}` ? '...' : 'Télécharger la lettre (uniquement)'}
-                </button>
-              </div>
+              {abo.type_recurrent !== 'recurring_contract' && (
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    className="btn btn-danger"
+                    style={{ flex: '1 1 250px', padding: '16px' }}
+                    onClick={() => startResiliation(abo)}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === abo.id ? 'Veuillez patienter...' : 'Résilier cet abonnement'}
+                  </button>
+                  
+                  <button 
+                    className="btn btn-outline"
+                    style={{ flex: '0 1 auto', padding: '16px' }}
+                    onClick={() => handleDownloadOnly(abo.id, abo.nom)}
+                    disabled={actionLoading !== null}
+                  >
+                    {actionLoading === `dl-${abo.id}` ? '...' : 'Télécharger la lettre (uniquement)'}
+                  </button>
+                </div>
+              )}
 
             </div>
           );

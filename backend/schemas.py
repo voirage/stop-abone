@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date
 from typing import List, Optional
-from models import StatutAbonnement, FrequenceAbonnement
+from models import StatutAbonnement, FrequenceAbonnement, TypeRecurrent
 
 # --- Schémas Token ---
 class Token(BaseModel):
@@ -44,6 +44,7 @@ class AbonnementBase(BaseModel):
     prochaine_date_renouvellement: Optional[date] = None
     numero_contrat: Optional[str] = None
     statut: StatutAbonnement = StatutAbonnement.ACTIF
+    type_recurrent: TypeRecurrent = TypeRecurrent.SUBSCRIPTION
     date_souscription: Optional[date] = None
     renouvellement_auto: bool = True
     
@@ -84,6 +85,7 @@ class CandidatAbonnement(BaseModel):
     prochaine_date_renouvellement: date
     date_souscription: date
     statut: StatutAbonnement = StatutAbonnement.ACTIF
+    type_recurrent: TypeRecurrent = TypeRecurrent.SUBSCRIPTION
     renouvellement_auto: bool = True
     source_detection: str = "import_csv"
     libelle_detection: Optional[str] = None
