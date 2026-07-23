@@ -22,10 +22,18 @@ logger = logging.getLogger("uvicorn.error")
 
 logger.warning("==================================================")
 logger.warning(f"[MIGRATION DEBUG] main.py chargé depuis: {os.path.abspath(__file__)}")
-logger.warning(f"[MIGRATION DEBUG] file = {__file__}")
-logger.warning(f"[MIGRATION DEBUG] cwd = {os.getcwd()}")
-logger.warning(f"[MIGRATION DEBUG] sys.path = {sys.path}")
-logger.warning(f"[MIGRATION DEBUG] DATABASE_URL lu: {os.getenv('DATABASE_URL', 'non défini')}")
+
+db_url_env = os.environ.get('DATABASE_URL')
+db_detectee = "OUI" if db_url_env else "NON"
+db_type = "Inconnu"
+if db_url_env:
+    if db_url_env.startswith("postgres"):
+        db_type = "PostgreSQL"
+    elif db_url_env.startswith("sqlite"):
+        db_type = "SQLite"
+
+logger.warning(f"[MIGRATION DEBUG] DATABASE_URL détectée : {db_detectee}")
+logger.warning(f"[MIGRATION DEBUG] Type de base : {db_type}")
 logger.warning("==================================================")
 
 import models, schemas, auth, database
