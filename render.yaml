@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: stop-abos-backend
+    env: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: stop-abos-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+
+databases:
+  - name: stop-abos-db
+    plan: free
+    databaseName: stop_abos
+    user: admin

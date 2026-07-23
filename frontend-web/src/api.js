@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const isProduction = import.meta.env.MODE === 'production';
-const API_URL = import.meta.env.VITE_API_URL || (isProduction ? 'https://stop-abone-production.up.railway.app' : 'http://localhost:8000');
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // Création d'une instance axios configurée
 const api = axios.create({
