@@ -24,6 +24,16 @@ logger.warning("==================================================")
 logger.warning(f"[MIGRATION DEBUG] main.py chargé depuis: {os.path.abspath(__file__)}")
 
 db_url_env = os.environ.get('DATABASE_URL')
+
+# Correction robuste : rechercher une clé contenant DATABASE_URL (pour contrer un espace invisible ajouté par erreur dans l'UI Render)
+if not db_url_env:
+    for key, value in os.environ.items():
+        if "DATABASE_URL" in key:
+            db_url_env = value
+            os.environ['DATABASE_URL'] = value # Force la variable exacte pour database.py
+            logger.warning(f"[MIGRATION DEBUG] Typo corrigée : variable trouvée sous le nom '{key}'")
+            break
+
 db_detectee = "OUI" if db_url_env else "NON"
 db_type = "Inconnu"
 if db_url_env:
@@ -31,6 +41,10 @@ if db_url_env:
         db_type = "PostgreSQL"
     elif db_url_env.startswith("sqlite"):
         db_type = "SQLite"
+else:
+    # Si toujours introuvable, afficher les clés d'environnement pour preuve (sans les valeurs)
+    keys = [k for k in os.environ.keys() if "DATA" in k or "URL" in k or "DB" in k or "POSTGRES" in k]
+    logger.warning(f"[MIGRATION DEBUG] Clés liées à la DB présentes dans l'OS : {keys}")
 
 logger.warning(f"[MIGRATION DEBUG] DATABASE_URL détectée : {db_detectee}")
 logger.warning(f"[MIGRATION DEBUG] Type de base : {db_type}")
