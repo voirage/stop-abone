@@ -3,8 +3,9 @@ import logging
 
 logger = logging.getLogger("uvicorn.error")
 
-def send_reset_password_email(to_email: str, token: str):
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+def send_reset_password_email(to_email: str, token: str, frontend_url: str = None):
+    if not frontend_url:
+        frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     reset_link = f"{frontend_url}/reset-password?token={token}"
     
     smtp_host = os.environ.get("SMTP_HOST")
@@ -19,7 +20,8 @@ def send_reset_password_email(to_email: str, token: str):
         smtp_user = os.environ.get("SMTP_USERNAME")
         smtp_password = os.environ.get("SMTP_PASSWORD")
         smtp_from = os.environ.get("SMTP_FROM", "noreply@stop-abos.fr")
-        smtp_use_tls = os.environ.get("SMTP_USE_TLS", "true").lower() in ("true", "1", "t")
+        smtp_use_tls_env = os.environ.get("SMTP_USE_TLS", "true")
+        smtp_use_tls = str(smtp_use_tls_env).lower() in ("true", "1", "t")
         
         msg = MIMEMultipart()
         msg['From'] = smtp_from

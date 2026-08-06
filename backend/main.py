@@ -262,7 +262,8 @@ def forgot_password(req: schemas.ForgotPasswordRequest, request: Request, db: Se
         
         logger.warning("[DEBUG] Token créé, appel de send_reset_password_email...")
         # Send email
-        send_reset_password_email(user.email, raw_token)
+        origin = request.headers.get("origin")
+        send_reset_password_email(user.email, raw_token, frontend_url=origin)
     else:
         logger.warning(f"[DEBUG] Utilisateur introuvable pour {email_norm}. Hachage factice.")
         # Dummy hash calculation to mitigate timing attacks
@@ -472,59 +473,18 @@ def telecharger_lettre_resiliation(
 
 @app.post("/admin/seed", tags=["Admin"], dependencies=[Depends(auth.get_current_user)])
 def seed_donnees_test(
-    db: Session = Depends(database.get_db),
     utilisateur_actuel: models.Utilisateur = Depends(auth.get_current_user)
 ):
     """
-    Route pour injecter les données de test directement dans la base de données du conteneur web actif.
-    Indispensable sur Railway si on utilise SQLite sans volume persistant.
+    Route pour injecter les données de test directement dans la base de données.
+    Réutilise la logique centralisée du fichier seed_production.py.
     """
-    from datetime import date, timedelta
+    import seed_production
     
-    aujourd_hui = date.today()
-    prochain_mois = aujourd_hui + timedelta(days=30)
+    # Appel de la fonction de seed avec l'email de l'utilisateur actuel (géré par Swagger/auth)
+    seed_production.seed_db(utilisateur_actuel.email)
     
-    abos = [
-        models.Abonnement(
-            nom="Canal+ Ciné Séries",
-            categorie="Streaming",
-            prix=39.99,
-            frequence=models.FrequenceAbonnement.MENSUEL,
-            prochaine_date_renouvellement=prochain_mois,
-            statut=models.StatutAbonnement.ACTIF,
-            date_souscription=date(2022, 2, 1),
-            renouvellement_auto=True,
-            proprietaire_id=utilisateur_actuel.id
-        ),
-        models.Abonnement(
-            nom="Netflix Premium",
-            categorie="Streaming",
-            prix=19.99,
-            frequence=models.FrequenceAbonnement.MENSUEL,
-            prochaine_date_renouvellement=prochain_mois,
-            statut=models.StatutAbonnement.ACTIF,
-            date_souscription=date(2023, 1, 15),
-            renouvellement_auto=True,
-            proprietaire_id=utilisateur_actuel.id
-        ),
-        models.Abonnement(
-            nom="Spotify Premium",
-            categorie="Musique",
-            prix=10.99,
-            frequence=models.FrequenceAbonnement.MENSUEL,
-            prochaine_date_renouvellement=prochain_mois,
-            statut=models.StatutAbonnement.ACTIF,
-            date_souscription=date(2021, 6, 10),
-            renouvellement_auto=True,
-            proprietaire_id=utilisateur_actuel.id
-        )
-    ]
-    
-    for abo in abos:
-        db.add(abo)
-        
-    db.commit()
-    return {"message": "Données de test ajoutées avec succès à la base SQLite du serveur web !"}
+    return {"message": f"Processus de seed terminé pour {utilisateur_actuel.email}. Le seed est idempotent, aucun doublon n'a été créé."}
 @app.post("/abonnements/scan-demo")
 def scan_demo_abonnements(
     db: Session = Depends(database.get_db),
