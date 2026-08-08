@@ -8,7 +8,7 @@ from datetime import date, timedelta
 # S'assurer que les tables existent
 models.Base.metadata.create_all(bind=engine)
 
-def seed_db(email: str = None):
+def seed_db(email: str):
     db: Session = SessionLocal()
     try:
         # Trouver l'utilisateur
@@ -65,15 +65,22 @@ def seed_db(email: str = None):
             )
         ]
         
-        # Ajout à la base de données
+        # Ajout à la base de données de manière idempotente
+        nouveaux_ajouts = 0
         for abo in abos:
-            db.add(abo)
+            existe = db.query(models.Abonnement).filter(
+                models.Abonnement.nom == abo.nom,
+                models.Abonnement.proprietaire_id == utilisateur.id
+            ).first()
             
+            if not existe:
+                db.add(abo)
+                nouveaux_ajouts += 1
+            else:
+                print(f"    -> Ignoré : L'abonnement '{abo.nom}' existe déjà.")
+                
         db.commit()
-        print("✅ SUCCESS : Les 3 abonnements de test ont été ajoutés avec succès ! ")
-        print("    -> Canal+ Ciné Séries (Score prévu ~90/100)")
-        print("    -> Netflix Premium")
-        print("    -> Spotify Premium")
+        print(f"✅ SUCCESS : Seed terminé. {nouveaux_ajouts} abonnement(s) ajouté(s).")
         
     except Exception as e:
         print(f"❌ Erreur lors du seed : {e}")
@@ -83,5 +90,11 @@ def seed_db(email: str = None):
 
 if __name__ == "__main__":
     print("=== DÉMARRAGE DU SEED DE PRODUCTION ===")
-    email_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    email_arg = sys.argv[1] if len(sys.argv) > 1 else os.getenv("SEED_EMAIL")
+
+    if not email_arg:
+        print("❌ Erreur : Aucune adresse e-mail fournie.")
+        print("Veuillez fournir l'email en argument ou via la variable d'environnement SEED_EMAIL.")
+        sys.exit(1)
+
     seed_db(email_arg)

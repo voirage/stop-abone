@@ -1,0 +1,20 @@
+Recent Users:
+(12, 'test@example.com')
+(11, 'jeanlucdeparis16@gmail.com')
+(10, 'test_ui_fix@example.com')
+(9, 'jean.testclient@example.com')
+(8, 'jean.dupont.test@gmail.com')
+
+Recent Abos:
+(20, 'Spotify Premium', 12)
+(19, 'Netflix Premium', 12)
+(18, 'Canal+ Ciné Séries', 12)
+(17, 'Abo Test', 10)
+(16, 'Abo Test', 10)
+
+Recent Rate Limits:
+(8, 'jeanlucdeparis16@gmail.com', '2026-07-18 03:50:52.015458', 'forgot_password')
+(7, 'jeanluc-final@gmail.com', '2026-07-17 15:05:05.758037', 'forgot_password')
+(6, 'jeanluc-final@gmail.com', '2026-07-17 06:55:38.939158', 'forgot_password')
+(5, 'jeanluc-final@gmail.com', '2026-07-17 06:46:09.695074', 'forgot_password')
+(4, 'jeanluc-final@gmail.com', '2026-07-16 21:37:55.910771', 'forgot_password')

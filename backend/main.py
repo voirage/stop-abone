@@ -263,6 +263,8 @@ def forgot_password(req: schemas.ForgotPasswordRequest, request: Request, db: Se
         logger.warning("[DEBUG] Token créé, appel de send_reset_password_email...")
         # Send email
         origin = request.headers.get("origin")
+        if origin and (origin == "null" or origin.strip() == ""):
+            origin = None
         send_reset_password_email(user.email, raw_token, frontend_url=origin)
     else:
         logger.warning(f"[DEBUG] Utilisateur introuvable pour {email_norm}. Hachage factice.")

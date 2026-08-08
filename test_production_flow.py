@@ -2,7 +2,7 @@ import requests
 import json
 import uuid
 
-API_URL = "https://stop-abone-production.up.railway.app"
+API_URL = "http://localhost:8000"
 TEST_EMAIL = f"test_prod_{uuid.uuid4().hex[:8]}@example.com"
 TEST_PASS = "password123"
 
