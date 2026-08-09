@@ -4,14 +4,19 @@ import logging
 logger = logging.getLogger("uvicorn.error")
 
 def send_reset_password_email(to_email: str, token: str, frontend_url: str = None):
-    if not frontend_url or frontend_url == "null" or str(frontend_url).strip() == "":
-        is_production = os.environ.get("RENDER") is not None
-        default_url = "https://stop-abone.vercel.app" if is_production else "http://localhost:5173"
-        frontend_url = os.environ.get("FRONTEND_URL", default_url)
-        
+    is_production = os.environ.get("RENDER") is not None
+    
+    if is_production:
+        frontend_url = "https://stop-abone.vercel.app"
+    else:
+        if not frontend_url or frontend_url == "null" or str(frontend_url).strip() == "":
+            frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+            
     # Nettoyer l'URL au cas où elle finirait par un slash
     frontend_url = frontend_url.rstrip("/")
     reset_link = f"{frontend_url}/reset-password?token={token}"
+    
+    logger.warning(f"RESET_URL_GENERATED = {reset_link}")
     
     smtp_host = os.environ.get("SMTP_HOST")
     
