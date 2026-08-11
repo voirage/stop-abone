@@ -109,6 +109,67 @@ def run_migrations():
 
 run_migrations()
 
+# --- TEMP MIGRATION FOR POSTGRESQL ---
+# À SUPPRIMER APRÈS LE PREMIER DÉPLOIEMENT RÉUSSI SUR RENDER
+def run_prod_migrations():
+    import os
+    try:
+        db_url = os.getenv("DATABASE_URL", "")
+        # N'exécuter que si on est sur PostgreSQL (Render)
+        if not db_url.startswith("postgres"):
+            return
+            
+        from sqlalchemy import text
+        from database import engine
+        from sqlalchemy.orm import Session
+        
+        logger.warning("==================================================")
+        logger.warning("[TEMP MIGRATION] Démarrage de la migration temporaire Utilisateur...")
+        
+        with Session(engine) as session:
+            try:
+                # 1. Vérifier la structure de la table
+                result = session.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='utilisateurs'"))
+                columns = [row[0] for row in result.fetchall()]
+                logger.warning(f"[TEMP MIGRATION] Colonnes de la table 'utilisateurs' : {columns}")
+                
+                # 2. Utilisateurs à migrer
+                users_to_insert = [
+                    ('jeanluctest2026@gmail.com', '$pbkdf2-sha256$29000$7F2r9V7Luffee28NASAkJA$lyGIF6f0JDyIPhmDHmBE0VXB25bRwhpj7LvTn8L9Ehw'),
+                    ('jeanluc-final@gmail.com', '$2b$12$NFfyBGvjhq91d.PyEQ.dQO9T9ki8IxkPKkMVfj.iC007WL7qwdr3S'),
+                    ('jeanlucdeparis16@gmail.com', '$2b$12$Fo87qnkXUAsxF2auNWA.vupbsImn8WiCECdSNwjmAC.HGFeBA741a')
+                ]
+                
+                for u_email, u_hash in users_to_insert:
+                    user_exists = session.execute(
+                        text("SELECT id FROM utilisateurs WHERE email = :email"),
+                        {"email": u_email}
+                    ).first()
+                    
+                    if not user_exists:
+                        logger.warning(f"[TEMP MIGRATION] Insertion de l'utilisateur {u_email}...")
+                        # On ne loggue aucun secret ou mot de passe ici
+                        session.execute(
+                            text("INSERT INTO utilisateurs (email, mot_de_passe_hache) VALUES (:email, :hash)"),
+                            {"email": u_email, "hash": u_hash}
+                        )
+                        session.commit()
+                        logger.warning(f"[TEMP MIGRATION] Utilisateur {u_email} inséré avec succès.")
+                    else:
+                        logger.warning(f"[TEMP MIGRATION] L'utilisateur {u_email} existe déjà.")
+                        
+            except Exception as e:
+                logger.error(f"[TEMP MIGRATION] Erreur SQL lors de la migration: {e}")
+                session.rollback()
+                
+        logger.warning("[TEMP MIGRATION] Migration temporaire terminée.")
+        logger.warning("==================================================")
+    except Exception as e:
+        logger.error(f"[TEMP MIGRATION] Erreur globale: {e}")
+
+run_prod_migrations()
+# ------------------------------------
+
 
 app = FastAPI(
     title="API STOP-ABOS",
