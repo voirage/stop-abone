@@ -7,7 +7,7 @@ def send_reset_password_email(to_email: str, token: str, frontend_url: str = Non
     is_production = os.environ.get("RENDER") is not None
     
     if is_production:
-        frontend_url = "https://stop-abone.vercel.app"
+        frontend_url = os.environ.get("FRONTEND_URL", "https://stop-abone.vercel.app")
     else:
         if not frontend_url or frontend_url == "null" or str(frontend_url).strip() == "":
             frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
@@ -56,26 +56,43 @@ L'équipe STOP-ABOS
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         try:
-            logger.warning(f"[DEBUG EMAIL] Connexion à {smtp_host}:{smtp_port}...")
-            server = smtplib.SMTP(smtp_host, smtp_port)
-            server.set_debuglevel(1)  # Affiche toute la conversation SMTP (codes et textes)
-            if smtp_use_tls:
-                server.starttls()
-                logger.warning("[DEBUG EMAIL] TLS activé.")
-            if smtp_user and smtp_password:
-                server.login(smtp_user, smtp_password)
-                logger.warning("[DEBUG EMAIL] Authentification réussie.")
+            logger.warning(f"[DEBUG EMAIL] Tentative d'envoi via Brevo API (HTTP) pour contourner le blocage SMTP de Render...")
             
-            refused = server.send_message(msg)
-            if not refused:
-                logger.warning("[DEBUG EMAIL] Succès absolu : Le message a été accepté par Brevo (code 250 OK). Aucun refus.")
-            else:
-                logger.warning(f"[DEBUG EMAIL] Attention, refus partiel ou total : {refused}")
-            server.quit()
-        except smtplib.SMTPResponseException as e:
-            logger.error(f"[EMAIL SERVICE ERROR] Rejet par Brevo - Code: {e.smtp_code}, Message exact: {e.smtp_error.decode('utf-8', 'ignore')}")
+            import urllib.request
+            import json
+            
+            brevo_api_url = "https://api.brevo.com/v3/smtp/email"
+            
+            payload = {
+                "sender": {"email": smtp_from, "name": "STOP-ABOS"},
+                "to": [{"email": to_email}],
+                "subject": "STOP-ABOS — Réinitialisation de votre mot de passe",
+                "htmlContent": f"""
+                <p>Bonjour,</p>
+                <p>Vous avez demandé à réinitialiser votre mot de passe sur STOP-ABOS.</p>
+                <p>Veuillez cliquer sur le lien ci-dessous pour choisir un nouveau mot de passe :</p>
+                <p><a href="{reset_link}">{reset_link}</a></p>
+                <p>Ce lien est valide pendant 30 minutes. S'il a expiré, veuillez refaire une demande.</p>
+                <p>Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet e-mail.</p>
+                <p>L'équipe STOP-ABOS</p>
+                """
+            }
+            
+            req = urllib.request.Request(brevo_api_url, method="POST")
+            req.add_header("accept", "application/json")
+            req.add_header("api-key", smtp_password)  # L'API key Brevo est la même que le mot de passe SMTP (xsmtpsib-...)
+            req.add_header("content-type", "application/json")
+            
+            # Envoi de la requête
+            with urllib.request.urlopen(req, data=json.dumps(payload).encode('utf-8')) as response:
+                res_data = response.read().decode('utf-8')
+                logger.warning(f"[DEBUG EMAIL] Succès API Brevo (code {response.status}) : {res_data}")
+                
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8')
+            logger.error(f"[EMAIL SERVICE ERROR] Rejet par API Brevo - Code: {e.code}, Message exact: {error_body}")
         except Exception as e:
-            logger.error(f"[EMAIL SERVICE ERROR] Exception générale lors de l'envoi SMTP: {e}")
+            logger.error(f"[EMAIL SERVICE ERROR] Exception générale lors de l'envoi Brevo API: {e}")
     else:
         # Mock en local
         logger.warning(f"=== [MOCK EMAIL SERVICE] ===")
