@@ -78,9 +78,14 @@ L'équipe STOP-ABOS
                 """
             }
             
+            brevo_api_key = os.environ.get("BREVO_API_KEY")
+            if not brevo_api_key:
+                logger.error("[EMAIL SERVICE ERROR] BREVO_API_KEY absente")
+                return
+
             req = urllib.request.Request(brevo_api_url, method="POST")
             req.add_header("accept", "application/json")
-            req.add_header("api-key", smtp_password)  # L'API key Brevo est la même que le mot de passe SMTP (xsmtpsib-...)
+            req.add_header("api-key", brevo_api_key)
             req.add_header("content-type", "application/json")
             
             # Envoi de la requête
